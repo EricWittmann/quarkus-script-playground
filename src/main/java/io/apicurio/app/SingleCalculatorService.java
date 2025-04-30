@@ -1,11 +1,12 @@
-package io.apicurio.calculator;
+package io.apicurio.app;
 
+import io.apicurio.calculator.CalculatorSpi;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 @ApplicationScoped
-public class MyExampleService {
+public class SingleCalculatorService {
 
     @Inject
     private CalculatorSpi calculator;

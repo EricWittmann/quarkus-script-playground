@@ -14,7 +14,6 @@ public class CalculatorSpiProducer {
 
     @Produces
     public CalculatorSpi produceCalculatorSpi() throws Exception {
-        System.out.println("---");
         Class<?> spiClass = CalculatorSpi.class;
         JsInterface jsInterfaceAnnotation = spiClass.getAnnotation(JsInterface.class);
         if (jsInterfaceAnnotation == null) {
@@ -22,18 +21,17 @@ public class CalculatorSpiProducer {
         }
 
         String scriptPath = jsInterfaceAnnotation.script();
-        Class<?> contextClass = jsInterfaceAnnotation.jsModule();
-
         String workingDir = System.getProperty("user.dir");
         Path fullScriptPath = Paths.get(workingDir, scriptPath);
+
+        return produceCalculatorSpi(fullScriptPath);
+    }
+
+    public CalculatorSpi produceCalculatorSpi(Path fullScriptPath) throws Exception {
+        System.out.println("Script path: " + fullScriptPath);
         String script = Files.readString(fullScriptPath);
 
-        System.out.println("Script path: " + fullScriptPath);
-        System.out.println("Context class: " + contextClass.getName());
-        System.out.println("Script: \n" + script);
-
         CalculatorProxy proxy = new CalculatorProxy(script);
-        System.out.println("---");
         return proxy;
     }
 
