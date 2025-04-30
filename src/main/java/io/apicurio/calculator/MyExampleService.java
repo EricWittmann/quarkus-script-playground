@@ -1,4 +1,4 @@
-package io.apicurio.registry.script;
+package io.apicurio.calculator;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -12,9 +12,9 @@ public class MyExampleService {
 
     @PostConstruct
     public void init() {
-        // Simple example usage of the javascript Calculator implementation
-        int twentyOne = calculator.multiply(3, 7);
-        System.out.println("twentyOne: " + twentyOne);
     }
 
+    public int twentyOne() {
+        return calculator.multiply(3, 7);
+    }
 }

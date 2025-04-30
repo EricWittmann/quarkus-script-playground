@@ -1,0 +1,4 @@
+*.js
+.idea
+target/
+node_modules/
