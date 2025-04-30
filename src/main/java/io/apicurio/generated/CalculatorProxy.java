@@ -29,12 +29,13 @@ public class CalculatorProxy implements CalculatorSpi {
 
     private int execute(String expression) {
         try {
-            CalculatorReturnValue utils = new CalculatorReturnValue();
-            Runner runner = createRunner(utils);
+            CalculatorReturnValue rval = new CalculatorReturnValue();
+            Runner runner = createRunner(rval);
             runner.compileAndExec(script + "\n" + expression);
-            System.out.println("===> return value 1: " + utils.getReturnValue());
-            runner.compileAndExec("setReturnValue('foo');");
-            System.out.println("===> return value 2: " + utils.getReturnValue());
+            return (Integer) rval.getReturnValue();
+//            System.out.println("===> return value 1: " + rval.getReturnValue());
+//            runner.compileAndExec("setReturnValue('foo');");
+//            System.out.println("===> return value 2: " + rval.getReturnValue());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -43,41 +44,25 @@ public class CalculatorProxy implements CalculatorSpi {
 
     @Override
     public int add(int term1, int term2) {
-        String expression = """
-                setReturnValue(calculator.add(TERM1, TERM2));
-                """
-                .replace("TERM1", String.valueOf(term1))
-                .replace("TERM2", String.valueOf(term2));
+        String expression = String.format("setReturnValue(calculator.add(%d, %d));", term1, term2);
         return execute(expression);
     }
 
     @Override
     public int subtract(int term1, int term2) {
-        String expression = """
-                setReturnValue(calculator.subtract(TERM1, TERM2));
-                """
-                .replace("TERM1", String.valueOf(term1))
-                .replace("TERM2", String.valueOf(term2));
+        String expression = String.format("setReturnValue(calculator.subtract(%d, %d));", term1, term2);
         return execute(expression);
     }
 
     @Override
     public int multiply(int factor1, int factor2) {
-        String expression = """
-                setReturnValue(calculator.multiply(FACTOR1, FACTOR2));
-                """
-                .replace("FACTOR1", String.valueOf(factor1))
-                .replace("FACTOR2", String.valueOf(factor2));
+        String expression = String.format("setReturnValue(calculator.multiply(%d, %d));", factor1, factor2);
         return execute(expression);
     }
 
     @Override
     public int divide(int dividend, int divisor) throws DivideByZeroException {
-        String expression = """
-                setReturnValue(calculator.divide(DIVIDEND, DIVISOR));
-                """
-                .replace("DIVIDEND", String.valueOf(dividend))
-                .replace("DIVISOR", String.valueOf(divisor));
+        String expression = String.format("setReturnValue(calculator.divide(%d, %d));", dividend, divisor);
         return execute(expression);
     }
 
