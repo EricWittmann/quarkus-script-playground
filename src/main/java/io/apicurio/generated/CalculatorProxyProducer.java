@@ -10,12 +10,12 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @ApplicationScoped
-public class CalculatorSpiProducer {
+public class CalculatorProxyProducer {
 
     @Produces
-    public CalculatorSpi produceCalculatorSpi() throws Exception {
-        Class<?> spiClass = CalculatorSpi.class;
-        JsInterface jsInterfaceAnnotation = spiClass.getAnnotation(JsInterface.class);
+    public CalculatorProxy produceCalculatorProxy() throws Exception {
+        Class<?> proxyClass = CalculatorProxy.class;
+        JsInterface jsInterfaceAnnotation = proxyClass.getAnnotation(JsInterface.class);
         if (jsInterfaceAnnotation == null) {
             throw new RuntimeException("Missing @JsInterface annotation");
         }
@@ -24,15 +24,14 @@ public class CalculatorSpiProducer {
         String workingDir = System.getProperty("user.dir");
         Path fullScriptPath = Paths.get(workingDir, scriptPath);
 
-        return produceCalculatorSpi(fullScriptPath);
+        return produceCalculatorProxy(fullScriptPath);
     }
 
-    public CalculatorSpi produceCalculatorSpi(Path fullScriptPath) throws Exception {
+    public CalculatorProxy produceCalculatorProxy(Path fullScriptPath) throws Exception {
         System.out.println("Script path: " + fullScriptPath);
         String script = Files.readString(fullScriptPath);
 
-        CalculatorProxy proxy = new CalculatorProxy(script);
-        return proxy;
+        return new CalculatorProxy(script);
     }
 
 }
