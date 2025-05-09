@@ -2,6 +2,7 @@
 .idea
 target/
 node_modules/
+dist/
 
 src/main/ts/dist/CalculatorContext.mjs
 !src/main/ts/dist/out.js

@@ -27,15 +27,20 @@ public class TestResource {
     @Path("/multi")
     @Produces(MediaType.TEXT_PLAIN)
     public String multi() throws Exception {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Hello from the test endpoint (multi): \n");
-        sb.append("  script1(10 + 7): " + mcs.add("script1", 10, 7));
-        sb.append("\n");
-        sb.append("  script2(13 + 4): " + mcs.add("script2", 13, 4));
-        sb.append("\n");
-        sb.append("  script3(20 - 3): " + mcs.subtract("script3", 20, 3));
-        sb.append("\n");
+        try {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Hello from the test endpoint (multi): \n");
+            sb.append("  script1(10 + 7): " + mcs.add("script1", 10, 7));
+            sb.append("\n");
+            sb.append("  script2(13 + 4): " + mcs.add("script2", 13, 4));
+            sb.append("\n");
+            sb.append("  script3(20 - 3): " + mcs.subtract("script3", 20, 3));
+            sb.append("\n");
 
-        return sb.toString();
+            return sb.toString();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Error: " + e.getMessage();
+        }
     }
 }

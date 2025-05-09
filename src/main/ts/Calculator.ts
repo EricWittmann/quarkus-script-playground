@@ -1,7 +1,4 @@
-import { log } from "./CalculatorContext.mjs";
-
-/// <reference path="../../../generated/CalculatorContext" />
-
+import { log } from "@quickjs4j/CalculatorContext.mjs";
 
 export function add(term1: number, term2: number): number {
     log("Adding " + term1 + " to " + term2);

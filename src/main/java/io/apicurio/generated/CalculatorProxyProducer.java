@@ -1,9 +1,11 @@
 package io.apicurio.generated;
 
 import io.apicurio.annotations.JsInterface;
-import io.apicurio.calculator.CalculatorSpi;
+import io.apicurio.calculator.Calculator;
+import io.apicurio.calculator.CalculatorContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
+import jakarta.inject.Inject;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,6 +13,9 @@ import java.nio.file.Paths;
 
 @ApplicationScoped
 public class CalculatorProxyProducer {
+
+    @Inject
+    CalculatorContext context;
 
     @Produces
     public CalculatorProxy produceCalculatorProxy() throws Exception {
@@ -31,7 +36,7 @@ public class CalculatorProxyProducer {
         System.out.println("Script path: " + fullScriptPath);
         String script = Files.readString(fullScriptPath);
 
-        return new CalculatorProxy(script);
+        return new CalculatorProxy(script, context);
     }
 
 }
