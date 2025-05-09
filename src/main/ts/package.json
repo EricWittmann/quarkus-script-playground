@@ -4,11 +4,12 @@
   "version": "1.0.0",
   "type": "module",
   "devDependencies": {
+    "esbuild": "^0.25.4",
     "rimraf": "6.0.1",
     "typescript": "5.8.3"
   },
   "scripts": {
     "clean": "rimraf *.js",
-    "build": "tsc --p ./tsconfig-build.json"
+    "build": "tsc --p ./tsconfig-build.json && esbuild dist/Calculator.js --bundle --outfile=dist/out.js --format=esm"
   }
 }

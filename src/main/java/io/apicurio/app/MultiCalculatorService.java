@@ -1,8 +1,7 @@
 package io.apicurio.app;
 
 import io.apicurio.calculator.CalculatorSpi;
-import io.apicurio.generated.CalculatorSpiProducer;
-import jakarta.annotation.PostConstruct;
+import io.apicurio.generated.CalculatorProxyProducer;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -13,16 +12,18 @@ import java.nio.file.Paths;
 public class MultiCalculatorService {
 
     @Inject
-    private CalculatorSpiProducer calculatorProducer;
+    private CalculatorProxyProducer calculatorProducer;
 
     public int add(String scriptName, int term1, int term2) throws Exception {
-        CalculatorSpi calculator = calculatorProducer.produceCalculatorSpi(toScriptPath(scriptName));
-        return calculator.add(term1, term2);
+        try (var proxy = calculatorProducer.produceCalculatorProxy(toScriptPath(scriptName))) {
+            return proxy.spi().add(term1, term2);
+        }
     }
 
     public int subtract(String scriptName, int term1, int term2) throws Exception {
-        CalculatorSpi calculator = calculatorProducer.produceCalculatorSpi(toScriptPath(scriptName));
-        return calculator.subtract(term1, term2);
+        try (var proxy = calculatorProducer.produceCalculatorProxy(toScriptPath(scriptName))) {
+            return proxy.spi().subtract(term1, term2);
+        }
     }
 
     private static Path toScriptPath(String scriptName) {
