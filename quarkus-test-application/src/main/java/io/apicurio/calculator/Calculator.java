@@ -1,8 +1,8 @@
 package io.apicurio.calculator;
 
-import io.apicurio.annotations.JsInterface;
+import io.apicurio.qqi.annotations.ScriptInterface;
 
-@JsInterface(script = "src/main/ts/dist/out.js", context = CalculatorContext.class)
+@ScriptInterface(script = "src/main/ts/dist/out.js", context = CalculatorContext.class)
 public interface Calculator {
 
     int add(int term1, int term2);
