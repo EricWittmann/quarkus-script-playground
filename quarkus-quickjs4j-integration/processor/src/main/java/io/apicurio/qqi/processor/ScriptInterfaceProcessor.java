@@ -51,16 +51,6 @@ import static javax.tools.Diagnostic.Kind.NOTE;
 
 public class ScriptInterfaceProcessor extends AbstractProcessor {
 
-    static final String PROXY_CONSTRUCTOR_BODY = """
-        HOST_FUNCTIONS_NAME hostFunctions = new HOST_FUNCTIONS_NAME(context);
-        Engine engine = Engine.builder()
-                .addBuiltins(BUILTINS_NAME.toBuiltins(hostFunctions))
-                .addInvokables(INVOKABLES_NAME.toInvokables())
-                .build();
-        this.runner = Runner.builder().withEngine(engine).build();
-        this.spi = INVOKABLES_NAME.create(script, runner);
-    """;
-
     static PackageElement getPackageName(Element element) {
         Element enclosing = element;
         while (enclosing.getKind() != ElementKind.PACKAGE) {
@@ -248,12 +238,21 @@ public class ScriptInterfaceProcessor extends AbstractProcessor {
         runnerField.setType("Runner");
 
         // Create the constructor
+        static final String proxyConstructorBody = """
+            HOST_FUNCTIONS_NAME hostFunctions = new HOST_FUNCTIONS_NAME(context);
+            Engine engine = Engine.builder()
+                    .addBuiltins(BUILTINS_NAME.toBuiltins(hostFunctions))
+                    .addInvokables(INVOKABLES_NAME.toInvokables())
+                    .build();
+            this.runner = Runner.builder().withEngine(engine).build();
+            this.spi = INVOKABLES_NAME.create(script, runner);
+        """;
         MethodSource<JavaClassSource> constructorSource = proxyClass.addMethod();
         constructorSource.setConstructor(true);
         constructorSource.setPublic();
         constructorSource.addParameter(String.class.getSimpleName(), "script");
         constructorSource.addParameter(contextClassName, "context");
-        constructorSource.setBody(template(PROXY_CONSTRUCTOR_BODY, Map.of(
+        constructorSource.setBody(template(proxyConstructorBody, Map.of(
                 "HOST_FUNCTIONS_NAME", contextClassHostFunctionsName,
                 "BUILTINS_NAME", contextClassBuiltinsName,
                 "INVOKABLES_NAME", scriptInvokablesName
