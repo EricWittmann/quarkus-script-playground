@@ -17,5 +17,5 @@ export function multiply(factor1: number, factor2: number): number {
 
 export function divide(dividend: number, divisor: number): number {
     log("Dividing " + dividend + " by " + divisor);
-    return divisor / divisor;
+    return dividend / divisor;
 }
