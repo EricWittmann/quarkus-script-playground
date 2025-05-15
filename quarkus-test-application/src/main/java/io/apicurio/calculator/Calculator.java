@@ -1,8 +1,7 @@
 package io.apicurio.calculator;
 
-import io.apicurio.qqi.annotations.ScriptInterface;
-
-@ScriptInterface(script = "src/main/ts/dist/out.js", context = CalculatorContext.class)
+@io.roastedroot.quickjs4j.annotations.ScriptInterface(context = CalculatorContext.class)
+@io.apicurio.qqi.annotations.ScriptInterfaceProducer(script = "src/main/ts/dist/out.js", context = CalculatorContext.class)
 public interface Calculator {
 
     int add(int term1, int term2);
