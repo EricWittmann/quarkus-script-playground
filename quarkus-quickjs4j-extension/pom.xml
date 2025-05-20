@@ -4,8 +4,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.apicurio</groupId>
-    <artifactId>quarkus-quickjs4j-integration</artifactId>
+    <groupId>io.quarkiverse.quickjs4j</groupId>
+    <artifactId>quarkus-quickjs4j-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
@@ -13,15 +13,18 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <maven.compiler.release>21</maven.compiler.release>
-        <quarkus.version>3.15.4</quarkus.version>
+
+        <quarkus.version>3.22.1</quarkus.version>
         <quickjs4j.version>0.0.3</quickjs4j.version>
-        <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
         <roaster.version>2.30.1.Final</roaster.version>
+
+        <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
+        <surefire-plugin.version>3.5.3</surefire-plugin.version>
     </properties>
 
     <modules>
-        <module>annotations</module>
-        <module>processor</module>
+        <module>runtime</module>
+        <module>deployment</module>
     </modules>
 
     <dependencyManagement>
@@ -33,14 +36,24 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <dependency>
-                <groupId>org.jboss.forge.roaster</groupId>
-                <artifactId>roaster-bom</artifactId>
-                <version>${roaster.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <source>${maven.compiler.source}</source>
+                        <target>${maven.compiler.target}</target>
+                        <release>${maven.compiler.release}</release>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
 
 </project>

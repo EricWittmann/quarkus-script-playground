@@ -1,0 +1,20 @@
+{
+  "name": "test-application-ts",
+  "private": false,
+  "version": "1.0.0",
+  "type": "module",
+  "devDependencies": {
+    "cp": "0.2.0",
+    "esbuild": "^0.25.4",
+    "rimraf": "6.0.1",
+    "typescript": "5.8.3"
+  },
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "tsc --p ./tsconfig-build.json && esbuild dist/src/main/ts/ContextTestScript.js --bundle --outfile=dist/contextTestLibrary.js --format=esm && esbuild dist/src/main/ts/SimpleTestScript.js --bundle --outfile=dist/simpleTestLibrary.js --format=esm"
+  },
+  "dependencies": {
+    "clean": "^4.0.2",
+    "run": "^1.5.0"
+  }
+}
