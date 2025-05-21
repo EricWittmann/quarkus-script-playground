@@ -21,7 +21,7 @@ public class SimpleTestResource {
     SimpleTestScript simpleTestScript;
 
     @Inject
-    ScriptInterfaceFactory<SimpleTestScript, SimpleTestScriptCtx> factory;
+    ScriptInterfaceFactory<SimpleTestScript, Void> factory;
 
     @GET
     @Produces(MediaType.TEXT_PLAIN)

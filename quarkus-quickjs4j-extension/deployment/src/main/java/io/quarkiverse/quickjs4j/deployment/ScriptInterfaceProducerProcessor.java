@@ -44,17 +44,13 @@ public class ScriptInterfaceProducerProcessor {
         producer.produce(new AdditionalIndexedClassesBuildItem(ScriptInterfaceFactory.class.getName()));
     }
 
-
     @BuildStep
     void generateProducers(CombinedIndexBuildItem indexBuildItem,
                            BuildProducer<GeneratedBeanBuildItem> generatedBeans) {
-        System.out.println(">>> generateProducers()");
-
         IndexView index = indexBuildItem.getIndex();
         Collection<AnnotationInstance> targetAnnotations = index.getAnnotations(ScriptInterface.class);
 
         for (AnnotationInstance annotation : targetAnnotations) {
-            System.out.println(">>> generateProducers() :: annotation: " + annotation);
             if (annotation.target().kind() == org.jboss.jandex.AnnotationTarget.Kind.CLASS) {
                 String targetClassName = annotation.target().asClass().name().toString();
                 String proxyClassName = targetClassName + "_Proxy";
@@ -62,10 +58,7 @@ public class ScriptInterfaceProducerProcessor {
                 String producerClassName = targetClassName + "Producer";
 
                 ClassType contextClass = getContextClass(annotation);
-                System.out.println(">>> generateProducers() :: contextClass: " + contextClass + " -- " + contextClass.getClass());
-
                 String scriptLocation = getScriptLocation(annotation.target());
-                System.out.println(">>> generateProducers() :: scriptLocation: " + scriptLocation);
 
                 // Generate the producer class
                 generateProducerClass(generatedBeans, targetClassName, proxyClassName, producerClassName,
@@ -74,10 +67,12 @@ public class ScriptInterfaceProducerProcessor {
         }
     }
 
-    // FIXME: handle the case where there is no context class (the class will be Void.class in that case)
     private ClassType getContextClass(AnnotationInstance annotation) {
         AnnotationValue value = annotation.value("context");
-        return (ClassType) value.asClass();
+        if (value != null) {
+            return (ClassType) value.asClass();
+        }
+        return null;
     }
 
     private String getScriptLocation(AnnotationTarget target) {
@@ -92,7 +87,10 @@ public class ScriptInterfaceProducerProcessor {
     private void generateProducerClass(BuildProducer<GeneratedBeanBuildItem> generatedBeans,
                                        String targetClassName, String proxyClassName, String producerClassName,
                                        String factoryClassName, ClassType contextClassType, String scriptLocation) {
-        String contextClassName = contextClassType.name().toString();
+        boolean hasContext = contextClassType != null;
+        boolean hasScriptLocation = scriptLocation != null;
+
+        String contextClassName = hasContext ? contextClassType.name().toString() : Void.class.getName();
         String scriptLibrary = null;
         if (scriptLocation != null) {
             scriptLibrary = ScriptUtils.loadScriptLibrary(scriptLocation);
@@ -117,8 +115,8 @@ public class ScriptInterfaceProducerProcessor {
             clinit.writeStaticField(staticField, clinit.load(scriptLibrary));
             clinit.returnValue(null);
 
-            // Inject the context - only needed if a script location is configured
-            if (scriptLocation != null) {
+            // Inject the context - only needed if a script location is configured and a context is configured
+            if (hasContext && hasScriptLocation) {
                 FieldCreator contextField = classCreator.getFieldCreator("context", contextClassName);
                 contextField.setModifiers(0x1); // public
                 contextField.addAnnotation(Inject.class);
@@ -155,18 +153,27 @@ public class ScriptInterfaceProducerProcessor {
                     ResultHandle scriptLibraryHandle = produceMethod.readStaticField(
                             FieldDescriptor.of(producerClassName, "DEFAULT_SCRIPT", String.class));
 
-                    // Get the context instance field
-                    ResultHandle contextHandle = produceMethod.readInstanceField(
-                            FieldDescriptor.of(producerClassName, "context", contextClassName),
-                            produceMethod.getThis()
-                    );
+                    ResultHandle instance;
+                    if (hasContext) {
+                        // Get the context instance field
+                        ResultHandle contextHandle = produceMethod.readInstanceField(
+                                FieldDescriptor.of(producerClassName, "context", contextClassName),
+                                produceMethod.getThis()
+                        );
 
-                    // Create the method body and return value.
-                    ResultHandle instance = produceMethod.newInstance(
-                            MethodDescriptor.ofConstructor(proxyClassName, String.class, contextClassName),
-                            scriptLibraryHandle,
-                            contextHandle
-                    );
+                        // Create the method body and return value.
+                        instance = produceMethod.newInstance(
+                                MethodDescriptor.ofConstructor(proxyClassName, String.class, contextClassName),
+                                scriptLibraryHandle,
+                                contextHandle
+                        );
+                    } else {
+                        // Create the method body and return value.
+                        instance = produceMethod.newInstance(
+                                MethodDescriptor.ofConstructor(proxyClassName, String.class),
+                                scriptLibraryHandle
+                        );
+                    }
                     produceMethod.returnValue(instance);
                 }
             }

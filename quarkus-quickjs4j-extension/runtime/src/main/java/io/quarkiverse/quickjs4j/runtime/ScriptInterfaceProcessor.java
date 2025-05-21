@@ -83,21 +83,27 @@ public class ScriptInterfaceProcessor extends AbstractProcessor {
         AnnotationMirror scriptInterfaceAnnotation = getScriptInterfaceAnnotation(element);
         Element contextClass = getContextClassFromAnnotation(scriptInterfaceAnnotation);
 
-        String contextClassPackage = getPackageName(contextClass).toString();
-        String contextClassName = contextClass.getSimpleName().toString();
-        String contextClassFQN = contextClassPackage + "." + contextClassName;
+        boolean hasContextClass = contextClass != null;
+        String contextClassName = "Void";
 
         // Create the factory class and add all imports
         JavaClassSource factorySource = Roaster.create(JavaClassSource.class);
         factorySource.setPackage(packageName);
         factorySource.setName(factoryClassName);
         factorySource.addImport(scriptInterfaceFQN);
-        factorySource.addImport(contextClassFQN);
         factorySource.addImport(proxyClassFQN);
         factorySource.addImport(ScriptInterfaceFactory.class);
         factorySource.addImport(Files.class);
         factorySource.addImport(Paths.class);
         factorySource.addImport(Path.class);
+
+        if (hasContextClass) {
+            String contextClassPackage = getPackageName(contextClass).toString();
+            contextClassName = contextClass.getSimpleName().toString();
+            String contextClassFQN = contextClassPackage + "." + contextClassName;
+
+            factorySource.addImport(contextClassFQN);
+        }
 
         // The factory class implements ScriptInterfaceFactory<T, C>
         factorySource.addInterface(template("INTERFACE<TYPE, CONTEXT>", Map.of(
@@ -110,6 +116,11 @@ public class ScriptInterfaceProcessor extends AbstractProcessor {
         String produceMethodBody = """
             return new PROXY_CLASS_NAME(scriptLibrary, context);
         """;
+        if (!hasContextClass) {
+            produceMethodBody = """
+                return new PROXY_CLASS_NAME(scriptLibrary);
+            """;
+        }
         MethodSource<JavaClassSource> create1MethodSource = factorySource.addMethod();
         create1MethodSource.setPublic();
         create1MethodSource.setReturnType(scriptInterfaceName);
