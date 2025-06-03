@@ -1,4 +1,0 @@
-io.roastedroot.quickjs4j.processor.ScriptInterfaceProcessor
-io.roastedroot.quickjs4j.processor.BuiltinsProcessor
-io.roastedroot.quickjs4j.processor.InvokablesProcessor
-io.quarkiverse.quickjs4j.runtime.ScriptInterfaceProcessor

@@ -1,6 +1,7 @@
 package io.quarkiverse.quickjs4j.testApp.context;
 
-import io.quarkiverse.quickjs4j.runtime.ScriptInterfaceFactory;
+import io.quarkiverse.quickjs4j.ScriptInterfaceFactory;
+import io.quarkiverse.quickjs4j.testApp.ScriptLibraryUtils;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -8,7 +9,6 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import java.io.IOException;
 import java.nio.file.Paths;
 
 @Path("/contextTest")
@@ -37,7 +37,8 @@ public class ContextTestResource {
     @Produces(MediaType.TEXT_PLAIN)
     @Path("/factory")
     public String testTheFactory() throws Exception {
-        ContextTestScript testScript = factory.create(Paths.get(scriptPath), context);
+        String scriptLibrary = ScriptLibraryUtils.loadScriptLibrary(scriptPath);
+        ContextTestScript testScript = factory.create(scriptLibrary, context);
         try {
             return "testTheFactory::" + testScript.getActualTestData();
         } finally {

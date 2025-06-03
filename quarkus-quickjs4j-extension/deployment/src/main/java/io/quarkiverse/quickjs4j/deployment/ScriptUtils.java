@@ -1,4 +1,4 @@
-package io.quarkiverse.quickjs4j.runtime;
+package io.quarkiverse.quickjs4j.deployment;
 
 import java.io.BufferedReader;
 import java.io.IOException;
