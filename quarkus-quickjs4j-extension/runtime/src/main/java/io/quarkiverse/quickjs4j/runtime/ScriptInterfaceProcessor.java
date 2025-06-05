@@ -179,12 +179,26 @@ public class ScriptInterfaceProcessor extends AbstractProcessor {
                 for (VariableElement parameter : ((ExecutableElement) member).getParameters()) {
                     String paramName = parameter.getSimpleName().toString();
                     String paramType = parameter.asType().toString();
-                    methodSource.addParameter(paramType, paramName);
+                    if (paramType.contains(".")) {
+                        String paramTypeFQN = paramType;
+                        String paramTypeName = paramTypeFQN.substring(paramTypeFQN.lastIndexOf('.') + 1);
+                        methodSource.addParameter(paramTypeName, paramName);
+                        cdiBeanSource.addImport(paramTypeFQN);
+                    } else {
+                        methodSource.addParameter(paramType, paramName);
+                    }
                     paramNames.add(paramName);
                 }
 
                 String returnType = ((ExecutableElement) member).getReturnType().toString();
-                methodSource.setReturnType(returnType);
+                if (returnType.contains(".")) {
+                    String returnTypeFQN = returnType;
+                    String returnTypeName = returnTypeFQN.substring(returnTypeFQN.lastIndexOf('.') + 1);
+                    methodSource.setReturnType(returnTypeName);
+                    cdiBeanSource.addImport(returnTypeFQN);
+                } else {
+                    methodSource.setReturnType(returnType);
+                }
 
                 List<? extends TypeMirror> thrownTypes =
                         ((ExecutableElement) member).getThrownTypes();

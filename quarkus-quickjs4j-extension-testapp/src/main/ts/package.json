@@ -11,7 +11,11 @@
   },
   "scripts": {
     "clean": "rimraf dist",
-    "build": "tsc --p ./tsconfig-build.json && esbuild dist/src/main/ts/ContextTestScript.js --bundle --outfile=dist/contextTestLibrary.js --format=esm && esbuild dist/src/main/ts/SimpleTestScript.js --bundle --outfile=dist/simpleTestLibrary.js --format=esm"
+    "transpile": "tsc --p ./tsconfig-build.json",
+    "build-simple": "esbuild dist/src/main/ts/SimpleTestScript.js --bundle --outfile=dist/simpleTestLibrary.js --format=esm",
+    "build-context": "esbuild dist/src/main/ts/ContextTestScript.js --bundle --outfile=dist/contextTestLibrary.js --format=esm",
+    "build-beans": "esbuild dist/src/main/ts/BeansTestScript.js --bundle --outfile=dist/beansTestLibrary.js --format=esm",
+    "build": "npm run transpile && npm run build-simple && npm run build-context && npm run build-beans"
   },
   "dependencies": {
     "clean": "^4.0.2",
