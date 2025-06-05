@@ -1,6 +1,16 @@
 package io.quarkiverse.quickjs4j.runtime;
 
+import com.github.javaparser.ast.Modifier;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.ReturnStmt;
+import io.quarkiverse.quickjs4j.ScriptInterfaceFactory;
+import io.quarkiverse.quickjs4j.annotations.ScriptImplementation;
+import io.quarkiverse.quickjs4j.util.ScriptInterfaceUtils;
 import io.roastedroot.quickjs4j.annotations.ScriptInterface;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.jboss.forge.roaster.Roaster;
 import org.jboss.forge.roaster.model.source.JavaClassSource;
 import org.jboss.forge.roaster.model.source.MethodSource;
@@ -16,15 +26,16 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import java.io.IOException;
 import java.io.Writer;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,6 +63,10 @@ public class ScriptInterfaceProcessor extends AbstractProcessor {
         return processingEnv.getFiler();
     }
 
+    Elements elements() {
+        return processingEnv.getElementUtils();
+    }
+
     void log(Diagnostic.Kind kind, String message, Element element) {
         processingEnv.getMessager().printMessage(kind, message, element);
     }
@@ -64,23 +79,151 @@ public class ScriptInterfaceProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         for (Element element : roundEnv.getElementsAnnotatedWith(ScriptInterface.class)) {
-            log(NOTE, "Generating factory class for script interface: " + element, null);
             generateFactoryFor((TypeElement) element);
+
+            ScriptImplementation scriptImplementationAnnotation = element.getAnnotation(ScriptImplementation.class);
+            if (scriptImplementationAnnotation != null) {
+                generateCdiBeanFor((TypeElement) element, scriptImplementationAnnotation.location());
+            }
         }
 
         return false;
     }
 
-    private void generateFactoryFor(TypeElement element) {
-        String packageName = getPackageName(element).toString();
-        String scriptInterfaceName = element.getSimpleName().toString();
+    private void generateCdiBeanFor(TypeElement scriptInterfaceElement, String scriptLocation) {
+        String packageName = getPackageName(scriptInterfaceElement).toString();
+        String scriptInterfaceName = scriptInterfaceElement.getSimpleName().toString();
         String scriptInterfaceFQN = packageName + "." + scriptInterfaceName;
-        String factoryClassName = scriptInterfaceName + "Factory";
-        String factoryClassFQN = packageName + "." + factoryClassName;
-        String proxyClassName = element.getSimpleName().toString() + "_Proxy";
+        String cdiBeanClassName = scriptInterfaceName + "_CDI";
+        String cdiBeanClassFQN = packageName + "." + cdiBeanClassName;
+        String proxyClassName = scriptInterfaceElement.getSimpleName().toString() + "_Proxy";
         String proxyClassFQN = packageName + "." + proxyClassName;
 
-        AnnotationMirror scriptInterfaceAnnotation = getScriptInterfaceAnnotation(element);
+        AnnotationMirror scriptInterfaceAnnotation = getScriptInterfaceAnnotation(scriptInterfaceElement);
+        Element contextClass = getContextClassFromAnnotation(scriptInterfaceAnnotation);
+
+        boolean hasContextClass = contextClass != null;
+        String contextClassName = "Void";
+
+        // Create the CDI Bean class and add all imports
+        JavaClassSource cdiBeanSource = Roaster.create(JavaClassSource.class);
+        cdiBeanSource.setPackage(packageName);
+        cdiBeanSource.setName(cdiBeanClassName);
+        cdiBeanSource.addImport(ApplicationScoped.class);
+        cdiBeanSource.addImport(scriptInterfaceFQN);
+        cdiBeanSource.addImport(proxyClassFQN);
+        cdiBeanSource.addImport(ScriptInterfaceUtils.class);
+        cdiBeanSource.addAnnotation(ApplicationScoped.class);
+
+        if (hasContextClass) {
+            String contextClassPackage = getPackageName(contextClass).toString();
+            contextClassName = contextClass.getSimpleName().toString();
+            String contextClassFQN = contextClassPackage + "." + contextClassName;
+
+            cdiBeanSource.addImport(contextClassFQN);
+            cdiBeanSource.addImport(Inject.class);
+        }
+
+        // The CDI bean class implements the script interface
+        cdiBeanSource.addInterface(scriptInterfaceName);
+
+        // Create the SCRIPT_LIBRARY_LOCATION static field
+        cdiBeanSource.addField()
+                .setPrivate()
+                .setStatic(true)
+                .setType(String.class)
+                .setName("SCRIPT_LIBRARY_LOCATION")
+                .setLiteralInitializer(String.format("\"%s\"", scriptLocation));
+
+        // Create the context field (if needed)
+        if (hasContextClass) {
+            cdiBeanSource.addField()
+                    .setType(contextClassName)
+                    .setName("context")
+                    .addAnnotation(Inject.class);
+        }
+
+        // Create the _createDelegate() method
+        String createDelegateMethodBody = """
+            String scriptLibrary = ScriptInterfaceUtils.loadScriptLibrary(SCRIPT_LIBRARY_LOCATION);
+            return new PROXY_CLASS_NAME(scriptLibrary, context);
+        """;
+        if (!hasContextClass) {
+            createDelegateMethodBody = """
+                String scriptLibrary = ScriptInterfaceUtils.loadScriptLibrary(SCRIPT_LIBRARY_LOCATION);
+                return new PROXY_CLASS_NAME(scriptLibrary);
+            """;
+        }
+        MethodSource<JavaClassSource> createDelegateMethodSource = cdiBeanSource.addMethod();
+        createDelegateMethodSource.setPrivate();
+        createDelegateMethodSource.setReturnType(proxyClassName);
+        createDelegateMethodSource.setName("_createDelegate");
+        createDelegateMethodSource.setBody(template(createDelegateMethodBody, Map.of(
+                "PROXY_CLASS_NAME", proxyClassName
+        )));
+
+        // Implement all methods in the script interface
+        Set<String> excludedMembers = Set.of(scriptInterfaceElement.getAnnotation(ScriptInterface.class).excluded());
+        for (Element member : elements().getAllMembers(scriptInterfaceElement)) {
+            if (member.getKind() == ElementKind.METHOD
+                    && member instanceof ExecutableElement
+                    && !excludedMembers.contains(member.getSimpleName().toString())) {
+
+                String methodName = member.getSimpleName().toString();
+                MethodSource<JavaClassSource> methodSource = cdiBeanSource.addMethod();
+                methodSource.setPublic();
+                methodSource.setName(methodName);
+                methodSource.addAnnotation(Override.class);
+
+                List<String> paramNames = new ArrayList<>(((ExecutableElement) member).getParameters().size());
+                for (VariableElement parameter : ((ExecutableElement) member).getParameters()) {
+                    String paramName = parameter.getSimpleName().toString();
+                    String paramType = parameter.asType().toString();
+                    methodSource.addParameter(paramType, paramName);
+                    paramNames.add(paramName);
+                }
+
+                String returnType = ((ExecutableElement) member).getReturnType().toString();
+                methodSource.setReturnType(returnType);
+
+                List<? extends TypeMirror> thrownTypes =
+                        ((ExecutableElement) member).getThrownTypes();
+                for (TypeMirror thrownType : thrownTypes) {
+                    methodSource.addThrows(thrownType.toString());
+                }
+
+                String methodBody = """
+                    try (var delegate = _createDelegate()) {
+                        RETURN delegate.METHOD_NAME(METHOD_ARGS);
+                    }
+                """;
+                methodSource.setBody(template(methodBody, Map.of(
+                        "RETURN", "void".equals(returnType) ? "" : "return",
+                        "METHOD_NAME", methodName,
+                        "METHOD_ARGS", String.join(",", paramNames)
+                )));
+            }
+        }
+
+        try (Writer writer = filer().createSourceFile(cdiBeanClassFQN, scriptInterfaceElement).openWriter()) {
+            writer.write(cdiBeanSource.toString());
+        } catch (IOException e) {
+            log(ERROR, format("Failed to create %s file: %s", cdiBeanClassFQN, e), null);
+        }
+    }
+
+    private void generateFactoryFor(TypeElement scriptInterfaceElement) {
+        log(NOTE, "Generating factory CDI bean class for script interface: " + scriptInterfaceElement, null);
+
+        String packageName = getPackageName(scriptInterfaceElement).toString();
+        String scriptInterfaceName = scriptInterfaceElement.getSimpleName().toString();
+        String scriptInterfaceFQN = packageName + "." + scriptInterfaceName;
+        String factoryClassName = scriptInterfaceName + "_Factory";
+        String factoryClassFQN = packageName + "." + factoryClassName;
+        String proxyClassName = scriptInterfaceElement.getSimpleName().toString() + "_Proxy";
+        String proxyClassFQN = packageName + "." + proxyClassName;
+
+        AnnotationMirror scriptInterfaceAnnotation = getScriptInterfaceAnnotation(scriptInterfaceElement);
         Element contextClass = getContextClassFromAnnotation(scriptInterfaceAnnotation);
 
         boolean hasContextClass = contextClass != null;
@@ -90,12 +233,12 @@ public class ScriptInterfaceProcessor extends AbstractProcessor {
         JavaClassSource factorySource = Roaster.create(JavaClassSource.class);
         factorySource.setPackage(packageName);
         factorySource.setName(factoryClassName);
+        factorySource.addImport(ApplicationScoped.class);
+        factorySource.addImport(ScriptInterfaceFactory.class);
         factorySource.addImport(scriptInterfaceFQN);
         factorySource.addImport(proxyClassFQN);
-        factorySource.addImport(ScriptInterfaceFactory.class);
-        factorySource.addImport(Files.class);
-        factorySource.addImport(Paths.class);
-        factorySource.addImport(Path.class);
+
+        factorySource.addAnnotation(ApplicationScoped.class);
 
         if (hasContextClass) {
             String contextClassPackage = getPackageName(contextClass).toString();
@@ -121,39 +264,21 @@ public class ScriptInterfaceProcessor extends AbstractProcessor {
                 return new PROXY_CLASS_NAME(scriptLibrary);
             """;
         }
-        MethodSource<JavaClassSource> create1MethodSource = factorySource.addMethod();
-        create1MethodSource.setPublic();
-        create1MethodSource.setReturnType(scriptInterfaceName);
-        create1MethodSource.setName("create");
-        create1MethodSource.addParameter("String", "scriptLibrary");
-        create1MethodSource.addParameter(contextClassName, "context");
-        create1MethodSource.setBody(template(produceMethodBody, Map.of(
+        MethodSource<JavaClassSource> createMethodSource = factorySource.addMethod();
+        createMethodSource.setPublic();
+        createMethodSource.setReturnType(scriptInterfaceName);
+        createMethodSource.setName("create");
+        createMethodSource.addParameter("String", "scriptLibrary");
+        createMethodSource.addParameter(contextClassName, "context");
+        createMethodSource.setBody(template(produceMethodBody, Map.of(
                 "PROXY_CLASS_NAME", proxyClassName
         )));
+        createMethodSource.addAnnotation(Override.class);
 
-        // Create the create(Path, Context) method
-        String create2MethodBody = """
-            Path fullScriptPath = scriptPath;
-            if (!fullScriptPath.isAbsolute()) {
-                String workingDir = System.getProperty("user.dir");
-                fullScriptPath = Paths.get(workingDir).resolve(scriptPath).normalize();
-            }
-            String scriptLibrary = Files.readString(fullScriptPath);
-            return create(scriptLibrary, context);
-        """;
-        MethodSource<JavaClassSource> create2MethodSource = factorySource.addMethod();
-        create2MethodSource.setPublic();
-        create2MethodSource.setReturnType(scriptInterfaceName);
-        create2MethodSource.setName("create");
-        create2MethodSource.addParameter(Path.class.getSimpleName(), "scriptPath");
-        create2MethodSource.addParameter(contextClassName, "context");
-        create2MethodSource.addThrows(IOException.class);
-        create2MethodSource.setBody(create2MethodBody);
-
-        try (Writer writer = filer().createSourceFile(factoryClassFQN, element).openWriter()) {
+        try (Writer writer = filer().createSourceFile(factoryClassFQN, scriptInterfaceElement).openWriter()) {
             writer.write(factorySource.toString());
         } catch (IOException e) {
-            log(ERROR, format("Failed to create %s file: %s", proxyClassFQN, e), null);
+            log(ERROR, format("Failed to create %s file: %s", factoryClassFQN, e), null);
         }
     }
 
